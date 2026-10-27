@@ -1,3 +1,4 @@
-streamlit
+flask
 supabase
 python-dotenv
+gunicorn
