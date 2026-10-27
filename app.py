@@ -5,11 +5,10 @@ import streamlit as st
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
+# CORRECTO: Leer el nombre de la variable de entorno
+SUPABASE_URL = os.getenv("https://cngsfkwkaodbopikrplm.supabase.co")
+SUPABASE_KEY = os.getenv("sb_publishable_ZByXGOuhARBXw_0w_xbN3w_qld1NU2P")
 
-SUPABASE_URL ="https://cngsfkwkaodbopikrplm.supabase.co"
-SUPABASE_KEY ="sb_publishable_ZByXGOuhARBXw_0w_xbN3w_qld1NU2P"
-
-# Inicializar cliente de Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Configuración de la página web
