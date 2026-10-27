@@ -1,53 +1,75 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+import streamlit as st
 
+# Cargar variables de entorno desde el archivo .env
 load_dotenv()
 
-supabase: Client = create_client(
-    os.getenv("https://cngsfkwkaodbopikrplm.supabase.co"),
-    os.getenv("sb_publishable_ZByXGOuhARBXw_0w_xbN3w_qld1NU2P")
-)
+SUPABASE_URL ="https://cngsfkwkaodbopikrplm.supabase.co"
+SUPABASE_KEY ="sb_publishable_ZByXGOuhARBXw_0w_xbN3w_qld1NU2P"
 
-def registrar_venta_completa(cliente_id, lista_items, forma_pago, total_venta):
-    """
-    Crea un pedido, agrega sus detalles y registra el pago en Supabase.
-    """
-    try:
-        # 1. Crear el Pedido
-        pedido_res = supabase.table("pedidos").insert({
-            "cliente_id": cliente_id,
-            "estado": "Completado",
-            "total": total_venta
-        }).execute()
+# Inicializar cliente de Supabase
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Configuración de la página web
+st.set_page_config(page_title="Taller Mecánico y Autopartes", layout="wide")
+
+st.title("🚗 Sistema de Gestión - Taller Mecánico y Autopartes")
+st.markdown("Administra tu inventario y catálogo de piezas directamente desde la web.")
+
+# Menú lateral para navegar entre secciones
+menu = st.sidebar.selectbox("Navegación", ["Registrar Autoparte", "Ver Catálogo"])
+
+if menu == "Registrar Autoparte":
+    st.subheader("📝 Registrar Nueva Autoparte")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        sku = st.text_input("Código SKU")
+        nombre = st.text_input("Nombre de la Pieza")
+        categoria = st.text_input("Categoría")
+        descripcion = st.text_area("Descripción")
         
-        pedido_id = pedido_res.data[0]["id"]
+    with col2:
+        precio = st.number_input("Precio ($)", min_value=0.0, format="%.2f")
+        stock = st.number_input("Stock Inicial", min_value=0, step=1)
+        ubicacion = st.text_input("Ubicación en Estante")
+    
+    if st.button("Guardar en Supabase", type="primary"):
+        if sku and nombre:
+            try:
+                datos = {
+                    "codigo_sku": sku,
+                    "nombre": nombre,
+                    "categoria": categoria,
+                    "descripcion": descripcion,
+                    "precio": float(precio),
+                    "stock": int(stock),
+                    "ubicacion_estante": ubicacion
+                }
+                supabase.table("autopartes").insert(datos).execute()
+                st.success(f"¡Pieza '{nombre}' registrada con éxito en la base de datos!")
+            except Exception as e:
+                st.error(f"Error al registrar la autoparte: {e}")
+        else:
+            st.warning("Por favor, completa al menos el Código SKU y el Nombre de la pieza.")
 
-        # 2. Registrar los detalles del pedido (autopartes vendidas)
-        for item in lista_items:
-            supabase.table("detalle_pedido").insert({
-                "pedido_id": pedido_id,
-                "autoparte_id": item["autoparte_id"],
-                "cantidad": item["cantidad"],
-                "precio_unitario": item["precio_unitario"]
-            }).execute()
-
-        # 3. Registrar el Pago
-        supabase.table("pagos").insert({
-            "pedido_id": pedido_id,
-            "monto": total_venta,
-            "forma_pago": forma_pago # "Efectivo", "Tarjeta", etc.
-        }).execute()
-
-        print(f"¡Venta registrada con éxito! Pedido ID: {pedido_id}")
-
+elif menu == "Ver Catálogo":
+    st.subheader("📦 Catálogo Actual de Autopartes")
+    
+    if st.button("🔄 Actualizar Tabla"):
+        st.rerun()
+        
+    try:
+        respuesta = supabase.table("autopartes").select("*").execute()
+        catalogo = respuesta.data
+        
+        if catalogo:
+            # Muestra los datos en una tabla interactiva muy estilizada
+            st.dataframe(catalogo, use_container_width=True)
+        else:
+            st.info("No hay autopartes registradas en este momento.")
     except Exception as e:
-        print("Error al procesar la venta:", e)
-
-# Ejemplo de prueba:
-# registrar_venta_completa(
-#     cliente_id=1, 
-#     lista_items=[{"autoparte_id": 1, "cantidad": 2, "precio_unitario": 250.00}], 
-#     forma_pago="Tarjeta de Crédito", 
-#     total_venta=500.00
-# )
+        st.error(f"Error al consultar el catálogo: {e}")
